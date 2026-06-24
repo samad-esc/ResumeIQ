@@ -1,0 +1,8 @@
+{
+  "languages": ["Python", "Java", "JavaScript", "C++", "C#", "Go", "Rust", "TypeScript", "Ruby", "PHP", "Swift", "Kotlin", "R"],
+  "web": ["React", "Vue", "Angular", "Django", "Flask", "FastAPI", "Express", "Spring", "Laravel", "ASP.NET"],
+  "databases": ["SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "Firebase"],
+  "cloud": ["AWS", "GCP", "Azure", "Docker", "Kubernetes", "Jenkins", "GitLab", "GitHub"],
+  "data": ["Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Pandas", "NumPy", "Scikit-learn", "NLP"],
+  "other": ["Git", "Linux", "REST API", "GraphQL", "Agile", "CI/CD"]
+}
