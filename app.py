@@ -1,6 +1,7 @@
 """
 ResumeIQ - AI-powered Resume to Job Match Analyzer
 Phase 1.2: ATS Analyzer Integration
+Phase 2.1: Keyword Optimization Integration
 """
 
 import streamlit as st
@@ -11,6 +12,7 @@ from utils.skill_analyzer import extract_skills, analyze_skills
 from utils.similarity import load_model, calculate_job_match_score, interpret_match
 from utils.llm import generate_summary, generate_suggestions
 from utils.ats_analyzer import ATSAnalyzer
+from utils.keyword_analyzer import KeywordAnalyzer
 
 
 # ============================================================================
@@ -350,11 +352,12 @@ if uploaded_file and job_description:
         skill_analysis = analyze_skills(resume_skills, jd_skills)
         
         # Similarity calculation
-        job_match_score, semantic_similarity = calculate_job_match_score(
+        job_match_score = calculate_job_match_score(
             resume_text, 
             job_description, 
             skill_analysis["coverage_percent"]
         )
+        job_match_score, semantic_similarity = job_match_score
         interpretation, emoji, color = interpret_match(job_match_score)
         
         # LLM analysis
@@ -376,6 +379,11 @@ if uploaded_file and job_description:
         ats_report = ats_analyzer.generate_ats_report(resume_text, job_description)
         ats_recommendations = ats_analyzer.generate_ats_recommendations(resume_text, job_description)
         
+        # ===== PHASE 2.1: KEYWORD ANALYSIS =====
+        
+        keyword_analyzer = KeywordAnalyzer()
+        keyword_report = keyword_analyzer.generate_keyword_report(resume_text, job_description)
+        
         analysis_time = round(time.time() - start_time, 2)
         
         # Store results in session state
@@ -394,6 +402,7 @@ if uploaded_file and job_description:
             "suggestions": suggestions,
             "ats_report": ats_report,
             "ats_recommendations": ats_recommendations,
+            "keyword_report": keyword_report,
             "word_count": len(resume_text.split()),
             "analysis_time": analysis_time,
         }
@@ -592,9 +601,142 @@ if st.session_state.results:
                 )
     else:
         st.markdown("✅ Great! All required skills are present in your resume.")
+    
+    # ===== PHASE 2.1: KEYWORD OPTIMIZATION SECTION =====
+    
+    st.markdown("---")
+    st.markdown("## 🎯 Keyword Optimization Analysis")
+    
+    keyword_report = results["keyword_report"]
+    keyword_stats = keyword_report["statistics"]
+    
+    # Keyword Coverage Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Keyword Match Score",
+            f"{keyword_stats['keyword_match_score']}/100",
+            delta=None
+        )
+    
+    with col2:
+        st.metric(
+            "Coverage %",
+            f"{keyword_stats['coverage_percent']}%",
+            delta=None
+        )
+    
+    with col3:
+        st.metric(
+            "Matched Keywords",
+            keyword_stats["matched_keywords"],
+            delta=None
+        )
+    
+    with col4:
+        st.metric(
+            "Missing Keywords",
+            keyword_stats["missing_keywords"],
+            delta=None
+        )
+    
+    # Keyword Statistics
+    st.markdown("### 📊 Keyword Statistics")
+    
+    stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+    
+    with stat_col1:
+        st.metric(
+            "Resume Keywords Total",
+            keyword_stats["resume_keywords_total"],
+            delta=None
+        )
+    
+    with stat_col2:
+        st.metric(
+            "JD Keywords Total",
+            keyword_stats["jd_keywords_total"],
+            delta=None
+        )
+    
+    with stat_col3:
+        st.metric(
+            "Unique Resume Keywords",
+            keyword_stats["unique_resume_keywords"],
+            delta=None
+        )
+    
+    with stat_col4:
+        st.metric(
+            "Unique JD Keywords",
+            keyword_stats["unique_jd_keywords"],
+            delta=None
+        )
+    
+    # Top Keywords Display
+    st.markdown("### ⭐ Top Keywords")
+    
+    top_col1, top_col2 = st.columns(2)
+    
+    with top_col1:
+        st.markdown("**Present Keywords**")
+        if keyword_stats["top_present_keywords"]:
+            for keyword in keyword_stats["top_present_keywords"]:
+                st.markdown(f'<span class="skill-tag">{keyword}</span>', unsafe_allow_html=True)
+        else:
+            st.markdown("No keywords present")
+    
+    with top_col2:
+        st.markdown("**Missing Keywords**")
+        if keyword_stats["top_missing_keywords"]:
+            for keyword in keyword_stats["top_missing_keywords"]:
+                st.markdown(f'<span class="missing-skill-tag">{keyword}</span>', unsafe_allow_html=True)
+        else:
+            st.markdown("No missing keywords")
+    
+    # Priority Keywords Ranked
+    st.markdown("### 🔴 Priority Keywords (Ranked by Importance)")
+    
+    ranked_keywords = keyword_report["ranked_keywords"]
+    
+    if ranked_keywords:
+        # Display top 10 priority keywords
+        priority_display = ranked_keywords[:10]
+        
+        for i, kw in enumerate(priority_display, 1):
+            priority_color = {
+                "High": "🔴",
+                "Medium": "🟡",
+                "Low": "🔵"
+            }.get(kw["priority"], "⚪")
+            
+            st.markdown(
+                f"""
+                <div class="ats-recommendation-item">
+                    {priority_color} **{kw['keyword']}** ({kw['category']}) 
+                    — {kw['reason']} | Priority: {kw['priority']}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+    
+    # Optimization Recommendations
+    st.markdown("### 💡 Optimization Recommendations")
+    
+    recommendations = keyword_report["recommendations"]
+    
+    if recommendations:
+        for i, rec in enumerate(recommendations, 1):
+            st.markdown(
+                f'<div class="recommendation-item">{i}. {rec}</div>',
+                unsafe_allow_html=True
+            )
+    else:
+        st.markdown("✅ No optimization recommendations at this time.")
 
 # ============================================================================
 # FOOTER
 # ============================================================================
 
-st.markdown('<div class="footer">ResumeIQ v1.0.0 | AI Resume Analyzer + ATS Scoring</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">ResumeIQ v1.0.0 | AI Resume Analyzer + ATS Scoring + Keyword Optimization</div>', unsafe_allow_html=True)
