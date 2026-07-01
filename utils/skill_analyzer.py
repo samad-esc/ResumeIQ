@@ -1,45 +1,64 @@
 import json
 import re
 from pathlib import Path
+import streamlit as st
 
+@st.cache_data
 def load_skills():
-    """Load skills from JSON file."""
+    """
+    Load skills from JSON file.
+    Cached so the file is read only once.
+    """
     skills_path = Path(__file__).parent.parent / "data" / "skills.json"
     
-    with open(skills_path, "r") as f:
+    with open(skills_path, "r", encoding="utf-8") as f:
         skills_data = json.load(f)
     
-    # Flatten all skills into one set
     all_skills = set()
+    
     for category in skills_data.values():
-        all_skills.update([s.lower() for s in category])
+        all_skills.update(
+            [skill.lower().strip() for skill in category]
+        )
     
     return all_skills
 
 def extract_skills(text):
-    """Extract skills from text."""
+    """
+    Extract skills from text using regex matching.
+    """
+    if not text:
+        return []
+
     skills = load_skills()
     text_lower = text.lower()
-    found_skills = []
-    
+
+    found_skills = set()
+
     for skill in skills:
-        # Word boundary to avoid partial matches
-        pattern = r'\b' + re.escape(skill) + r'\b'
+        pattern = r"\b" + re.escape(skill) + r"\b"
+
         if re.search(pattern, text_lower):
-            found_skills.append(skill)
-    
-    return sorted(list(set(found_skills)))
+            found_skills.add(skill)
+
+    return sorted(found_skills)
 
 def analyze_skills(resume_skills, jd_skills):
-    """Compare resume skills with job description skills."""
+    """
+    Compare resume skills against job description skills.
+    """
     resume_set = set(resume_skills)
     jd_set = set(jd_skills)
-    
-    matching = sorted(list(resume_set & jd_set))
-    missing = sorted(list(jd_set - resume_set))
-    
-    coverage = len(matching) / len(jd_set) if jd_set else 0
-    
+
+    matching = sorted(resume_set & jd_set)
+    missing = sorted(jd_set - resume_set)
+
+    coverage = (
+        len(matching) / len(jd_set)
+        if jd_set
+        else 0
+    )
+
     return {
         "matching": matching,
         "missing": missing,
