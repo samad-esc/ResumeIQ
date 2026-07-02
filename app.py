@@ -13,6 +13,7 @@ from utils.similarity import load_model, calculate_job_match_score, interpret_ma
 from utils.llm import generate_summary, generate_suggestions
 from utils.ats_analyzer import ATSAnalyzer
 from utils.keyword_analyzer import KeywordAnalyzer
+from utils.resume_tailor import ResumeTailor
 
 
 # ============================================================================
@@ -384,6 +385,11 @@ if uploaded_file and job_description:
         keyword_analyzer = KeywordAnalyzer()
         keyword_report = keyword_analyzer.generate_keyword_report(resume_text, job_description)
         
+        # ===== PHASE 3.1: RESUME TAILORING ANALYSIS =====
+        
+        tailor = ResumeTailor()
+        tailoring_report = tailor.generate_tailoring_report(ats_report, keyword_report)
+        
         analysis_time = round(time.time() - start_time, 2)
         
         # Store results in session state
@@ -403,6 +409,7 @@ if uploaded_file and job_description:
             "ats_report": ats_report,
             "ats_recommendations": ats_recommendations,
             "keyword_report": keyword_report,
+            "tailoring_report": tailoring_report,
             "word_count": len(resume_text.split()),
             "analysis_time": analysis_time,
         }
@@ -736,7 +743,126 @@ if st.session_state.results:
         st.markdown("✅ No optimization recommendations at this time.")
 
 # ============================================================================
+# PHASE 3.1: RESUME TAILORING SECTION
+# ============================================================================
+
+if st.session_state.results:
+    results = st.session_state.results
+    
+    st.markdown("---")
+    st.markdown("## ✨ Resume Tailoring Recommendations")
+    
+    tailoring_report = results["tailoring_report"]
+    
+    # Tailoring Score Card
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="score-card">
+            <div class="metric-label">Tailoring Opportunity Score</div>
+            <div class="metric-value">{tailoring_report['overall_tailoring_score']}/100</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="ats-card">
+            <div class="metric-label">Tailoring Summary</div>
+            <div style="font-size: 0.9em; margin: 10px 0; color: #b0b3ff;">
+                {tailoring_report['summary']}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Priority Actions
+    st.markdown("### 🎯 Priority Actions")
+    
+    priority_actions = tailoring_report["priority_actions"]
+    
+    if priority_actions:
+        # Group by priority
+        high_priority = [a for a in priority_actions if a["priority"] == "High"]
+        med_priority = [a for a in priority_actions if a["priority"] == "Medium"]
+        low_priority = [a for a in priority_actions if a["priority"] == "Low"]
+        
+        if high_priority:
+            st.markdown("#### 🔴 High Priority")
+            for action in high_priority[:5]:
+                st.markdown(f"""
+                <div class="ats-recommendation-item">
+                    <strong>{action['action']}</strong><br>
+                    <em>Section:</em> {action['section']} | 
+                    <em>Impact:</em> {action['impact_score']}/10<br>
+                    <small>{action['reason']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        if med_priority:
+            st.markdown("#### 🟡 Medium Priority")
+            for action in med_priority[:4]:
+                st.markdown(f"""
+                <div class="recommendation-item">
+                    <strong>{action['action']}</strong><br>
+                    <em>Section:</em> {action['section']} | 
+                    <em>Impact:</em> {action['impact_score']}/10<br>
+                    <small>{action['reason']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        if low_priority and len(high_priority) + len(med_priority) < 10:
+            st.markdown("#### 🔵 Low Priority")
+            for action in low_priority[:3]:
+                st.markdown(f"""
+                <div class="recommendation-item">
+                    {action['action']}<br>
+                    <small>{action['reason']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Section-Specific Recommendations
+    st.markdown("### 📋 Section-Specific Recommendations")
+    
+    section_recommendations = tailoring_report["section_recommendations"]
+    present_sections = tailoring_report["present_sections"]
+    
+    for section in ["Skills", "Projects", "Experience", "Education", "Professional Summary"]:
+        recs = section_recommendations.get(section, [])
+        
+        if recs:
+            status_icon = "✅" if section in present_sections else "⚠️"
+            with st.expander(f"{status_icon} {section} ({len(recs)} recommendations)"):
+                for i, rec in enumerate(recs, 1):
+                    priority_icon = {
+                        "High": "🔴",
+                        "Medium": "🟡",
+                        "Low": "🔵"
+                    }.get(rec.get("priority", "Low"), "⚪")
+                    
+                    st.markdown(f"""
+                    {priority_icon} **{rec['action']}**
+                    
+                    - **Keyword:** {rec['keyword']}
+                    - **Category:** {rec['category']}
+                    - **Reason:** {rec['reason']}
+                    - **Impact:** {rec.get('impact_score', 0)}/10
+                    """)
+    
+    # Missing Sections Notice
+    missing_sections = tailoring_report["missing_sections"]
+    if missing_sections:
+        st.markdown("### ⚠️ Missing Resume Sections")
+        st.warning(
+            f"Consider adding these sections: {', '.join(missing_sections)}. "
+            f"These sections can significantly improve your resume's completeness."
+        )
+
+# ============================================================================
 # FOOTER
 # ============================================================================
 
-st.markdown('<div class="footer">ResumeIQ v1.0.0 | AI Resume Analyzer + ATS Scoring + Keyword Optimization</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">ResumeIQ v1.0.0 | AI Resume Analyzer + ATS Scoring + Keyword Optimization + Resume Tailoring</div>', unsafe_allow_html=True)
