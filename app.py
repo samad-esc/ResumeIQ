@@ -2,6 +2,8 @@
 ResumeIQ - AI-powered Resume to Job Match Analyzer
 Phase 1.2: ATS Analyzer Integration
 Phase 2.1: Keyword Optimization Integration
+Phase 3.1: Resume Tailoring Integration
+Phase 4.1: AI Resume Rewriter Integration
 """
 
 import streamlit as st
@@ -14,6 +16,7 @@ from utils.llm import generate_summary, generate_suggestions
 from utils.ats_analyzer import ATSAnalyzer
 from utils.keyword_analyzer import KeywordAnalyzer
 from utils.resume_tailor import ResumeTailor
+from utils.resume_rewriter import ResumeRewriter
 
 
 # ============================================================================
@@ -389,6 +392,13 @@ if uploaded_file and job_description:
         
         tailor = ResumeTailor()
         tailoring_report = tailor.generate_tailoring_report(ats_report, keyword_report)
+
+        # ===== PHASE 4.1: AI RESUME REWRITER ANALYSIS =====
+        
+        rewriter = ResumeRewriter()
+        rewrite_report = rewriter.generate_rewrite_report(
+            resume_text, job_description, keyword_report, tailoring_report
+        )
         
         analysis_time = round(time.time() - start_time, 2)
         
@@ -410,6 +420,7 @@ if uploaded_file and job_description:
             "ats_recommendations": ats_recommendations,
             "keyword_report": keyword_report,
             "tailoring_report": tailoring_report,
+            "rewrite_report": rewrite_report,
             "word_count": len(resume_text.split()),
             "analysis_time": analysis_time,
         }
@@ -860,6 +871,116 @@ if st.session_state.results:
             f"Consider adding these sections: {', '.join(missing_sections)}. "
             f"These sections can significantly improve your resume's completeness."
         )
+
+# ============================================================================
+# PHASE 4.1: AI RESUME REWRITER SECTION
+# ============================================================================
+
+if st.session_state.results:
+    results = st.session_state.results
+    rewrite_report = results.get("rewrite_report", {})
+    
+    if rewrite_report:
+        st.markdown("---")
+        st.markdown("## 🤖 AI-Powered Resume Rewriter")
+        
+        # API Key Status
+        if not rewrite_report.get("has_api_key"):
+            st.info("⚠️ Gemini API key not configured. AI rewriting features unavailable. "
+                   "Set GEMINI_API_KEY environment variable to enable.")
+        
+        # Improvement Score
+        improvement_score = rewrite_report.get("overall_improvement_score", 0)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="score-card">
+                <div class="metric-label">Improvement Potential Score</div>
+                <div class="metric-value">{improvement_score}/100</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            if improvement_score >= 70:
+                message = "Significant improvements available to strengthen your resume."
+            elif improvement_score >= 40:
+                message = "Moderate improvements can enhance your application competitiveness."
+            else:
+                message = "Your resume already has strong alignment with this job description."
+            
+            st.markdown(f"""
+            <div class="ats-card">
+                <div class="metric-label">Improvement Insights</div>
+                <div style="font-size: 0.9em; margin: 10px 0; color: #b0b3ff;">
+                    {message}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Professional Summary Rewrite
+        summary_rewrite = rewrite_report.get("summary_rewrite")
+        if summary_rewrite:
+            st.markdown("### 📝 Professional Summary Rewrite")
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown(f"""
+            **Rewritten Summary:**
+            
+            {summary_rewrite}
+            """)
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Bullet Point Rewrites
+        bullet_rewrites = rewrite_report.get("bullet_rewrites", [])
+        if bullet_rewrites:
+            st.markdown("### 💡 Improved Bullet Points")
+            
+            for i, rewrite in enumerate(bullet_rewrites, 1):
+                with st.expander(f"Bullet {i}: Improvement Preview"):
+                    st.markdown(f"""
+                    **Original:**
+                    > {rewrite['original']}
+                    
+                    **Improved:**
+                    > {rewrite['improved']}
+                    """)
+        
+        # Achievement Suggestions
+        achievement_suggestions = rewrite_report.get("achievement_suggestions", [])
+        if achievement_suggestions:
+            st.markdown("### 🎯 Achievement Enhancement Suggestions")
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            
+            for i, suggestion in enumerate(achievement_suggestions, 1):
+                st.markdown(f"""
+                <div class="recommendation-item">
+                    {i}. {suggestion}
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Keyword Insertion Suggestions
+        keyword_insertions = rewrite_report.get("keyword_insertions", [])
+        if keyword_insertions:
+            st.markdown("### 🔑 Natural Keyword Insertion Suggestions")
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            
+            for suggestion in keyword_insertions:
+                location = suggestion.get("location", "Resume")
+                suggestion_text = suggestion.get("suggestion", "")
+                st.markdown(f"""
+                <div class="ats-recommendation-item">
+                    <strong>{location}</strong><br>
+                    {suggestion_text}
+                </div>
+                """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ============================================================================
 # FOOTER
